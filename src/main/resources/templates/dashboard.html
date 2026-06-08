@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>CogniAssist Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #0f0f1a;
+            color: #ffffff;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            padding: 20px 40px;
+            border-bottom: 2px solid #00d4ff;
+        }
+
+        .header h1 { font-size: 28px; color: #00d4ff; }
+        .header p { color: #888; font-size: 14px; }
+
+        .container {
+            max-width: 1100px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: #1a1a2e;
+            border-radius: 12px;
+            padding: 25px;
+            border: 1px solid #2a2a4a;
+            text-align: center;
+        }
+
+        .card h3 {
+            color: #888;
+            font-size: 13px;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+
+        .card .value {
+            font-size: 36px;
+            font-weight: bold;
+            color: #00d4ff;
+        }
+
+        .fatigue-LOW { color: #00ff88 !important; }
+        .fatigue-MEDIUM { color: #ffaa00 !important; }
+        .fatigue-HIGH { color: #ff4444 !important; }
+
+        .controls {
+            background: #1a1a2e;
+            border-radius: 12px;
+            padding: 25px;
+            border: 1px solid #2a2a4a;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .controls h2 { margin-bottom: 20px; color: #00d4ff; }
+
+        .global-status {
+            background: #0f0f1a;
+            border: 1px solid #00d4ff33;
+            border-radius: 10px;
+            padding: 15px 20px;
+            margin: 15px 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-align: left;
+        }
+
+        .global-status .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #444;
+            flex-shrink: 0;
+        }
+
+        .dot.active {
+            background: #00ff88;
+            box-shadow: 0 0 8px #00ff88;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 #00ff8866; }
+            70% { box-shadow: 0 0 0 8px #00ff8800; }
+            100% { box-shadow: 0 0 0 0 #00ff8800; }
+        }
+
+        .global-status .info { flex: 1; }
+        .global-status .info p {
+            color: #00d4ff;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .global-status .info span {
+            color: #888;
+            font-size: 12px;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 5px;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        .btn-start { background: #00ff88; color: #000; }
+        .btn-stop { background: #ff4444; color: #fff; }
+        .btn:hover { opacity: 0.8; transform: scale(1.05); }
+        .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        .status {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 8px;
+            background: #0f0f1a;
+            color: #00d4ff;
+            font-size: 14px;
+        }
+
+        .alert-box {
+            display: none;
+            margin-top: 15px;
+            padding: 15px 20px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .alert-LOW {
+            background: #00ff8822;
+            border: 1px solid #00ff88;
+            color: #00ff88;
+        }
+
+        .alert-MEDIUM {
+            background: #ffaa0022;
+            border: 1px solid #ffaa00;
+            color: #ffaa00;
+        }
+
+        .alert-HIGH {
+            background: #ff444422;
+            border: 1px solid #ff4444;
+            color: #ff4444;
+        }
+
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .chart-section {
+            background: #1a1a2e;
+            border-radius: 12px;
+            padding: 25px;
+            border: 1px solid #2a2a4a;
+        }
+
+        .chart-section h2 { color: #00d4ff; margin-bottom: 20px; }
+
+        .table-section {
+            background: #1a1a2e;
+            border-radius: 12px;
+            padding: 25px;
+            border: 1px solid #2a2a4a;
+            margin-bottom: 30px;
+        }
+
+        .table-section h2 { color: #00d4ff; margin-bottom: 20px; }
+
+        table { width: 100%; border-collapse: collapse; }
+
+        th {
+            background: #0f0f1a;
+            padding: 12px;
+            text-align: left;
+            color: #888;
+            font-size: 13px;
+            text-transform: uppercase;
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #2a2a4a;
+            font-size: 14px;
+        }
+
+        tr:hover { background: #16213e; }
+
+        .badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .badge-LOW { background: #00ff8822; color: #00ff88; }
+        .badge-MEDIUM { background: #ffaa0022; color: #ffaa00; }
+        .badge-HIGH { background: #ff444422; color: #ff4444; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>🧠 CogniAssist</h1>
+    <p>AI-Powered Cognitive Load Monitor</p>
+</div>
+
+<div class="container">
+
+    <!-- Stats Cards -->
+    <div class="cards">
+        <div class="card">
+            <h3>⌨️ Keystrokes</h3>
+            <div class="value" id="keystrokeCount">0</div>
+        </div>
+        <div class="card">
+            <h3>❌ Errors</h3>
+            <div class="value" id="errorCount">0</div>
+        </div>
+        <div class="card">
+            <h3>⚡ Speed (k/min)</h3>
+            <div class="value" id="typingSpeed">0</div>
+        </div>
+        <div class="card">
+            <h3>🧠 Fatigue Level</h3>
+            <div class="value" id="fatigueLevel">--</div>
+        </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls">
+        <h2>Session Controls</h2>
+
+        <button class="btn btn-start" onclick="startSession()"
+                id="btnStart">▶ Start Monitoring</button>
+        <button class="btn btn-stop" onclick="stopSession()"
+                id="btnStop" disabled>⏹ Stop & Analyze</button>
+
+        <!-- Global Tracking Status -->
+        <div class="global-status">
+            <div class="dot" id="trackingDot"></div>
+            <div class="info">
+                <p id="trackingTitle">🔴 Monitoring Inactive</p>
+                <span id="trackingDesc">
+                    Click "Start Monitoring" to begin
+                </span>
+            </div>
+        </div>
+
+        <!-- Fatigue Alert -->
+        <div class="alert-box" id="alertBox"></div>
+
+        <div class="status" id="status">
+            Click "Start Monitoring" to track your keystrokes globally
+        </div>
+    </div>
+
+    <!-- Chart + Stats -->
+    <div class="two-col">
+        <div class="chart-section">
+            <h2>📈 Fatigue History</h2>
+            <canvas id="fatigueChart"></canvas>
+        </div>
+        <div class="chart-section">
+            <h2>📊 Fatigue Distribution</h2>
+            <canvas id="distributionChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Session History Table -->
+    <div class="table-section">
+        <h2>📋 Session History</h2>
+        <table>
+            <thead>
+            <tr>
+                <th>Time</th>
+                <th>Keystrokes</th>
+                <th>Errors</th>
+                <th>Speed</th>
+                <th>Fatigue</th>
+            </tr>
+            </thead>
+            <tbody id="sessionTable">
+            <tr><td colspan="5"
+                    style="text-align:center; color:#888">
+                Loading sessions...
+            </td></tr>
+            </tbody>
+        </table>
+    </div>
+
+</div>
+
+<script>
+    let keystrokeCount = 0;
+    let errorCount = 0;
+    let sessionActive = false;
+    let sessionStartTime = null;
+    let fatigueChart = null;
+    let distributionChart = null;
+    let speedInterval = null;
+
+    window.onload = function() {
+        loadSessions();
+        initCharts();
+    };
+
+    function updateSpeed() {
+        if (sessionStartTime) {
+            const elapsed = (Date.now() - sessionStartTime) / 60000;
+            const speed = elapsed > 0 ?
+                Math.round(keystrokeCount / elapsed) : 0;
+            document.getElementById('typingSpeed').textContent = speed;
+        }
+    }
+
+    async function startSession() {
+        await fetch('/api/session/start', { method: 'POST' });
+        sessionActive = true;
+        sessionStartTime = Date.now();
+        keystrokeCount = 0;
+        errorCount = 0;
+
+        document.getElementById('keystrokeCount').textContent = '0';
+        document.getElementById('errorCount').textContent = '0';
+        document.getElementById('typingSpeed').textContent = '0';
+        document.getElementById('fatigueLevel').textContent = '--';
+        document.getElementById('fatigueLevel').className = 'value';
+        document.getElementById('btnStop').disabled = false;
+        document.getElementById('btnStart').disabled = true;
+        document.getElementById('alertBox').style.display = 'none';
+
+        // Update tracking status
+        document.getElementById('trackingDot').className = 'dot active';
+        document.getElementById('trackingTitle').textContent =
+            '🟢 Global Monitoring Active';
+        document.getElementById('trackingDesc').textContent =
+            'Tracking ALL keystrokes on your computer — type anywhere!';
+
+        document.getElementById('status').textContent =
+            '✅ Monitoring started! Type anywhere on your computer...';
+
+        // Update speed every second
+        speedInterval = setInterval(updateSpeed, 1000);
+
+        // Poll keystroke counts from server every 2 seconds
+        pollInterval = setInterval(pollCounts, 2000);
+    }
+
+    async function pollCounts() {
+        // Update display from server side counts
+        const res = await fetch('/api/session/counts');
+        if (res.ok) {
+            const data = await res.json();
+            keystrokeCount = data.keystrokeCount;
+            errorCount = data.errorCount;
+            document.getElementById('keystrokeCount')
+                .textContent = keystrokeCount;
+            document.getElementById('errorCount')
+                .textContent = errorCount;
+        }
+    }
+
+    async function stopSession() {
+        sessionActive = false;
+        clearInterval(speedInterval);
+        clearInterval(pollInterval);
+
+        document.getElementById('trackingDot').className = 'dot';
+        document.getElementById('trackingTitle').textContent =
+            '🔴 Monitoring Inactive';
+        document.getElementById('trackingDesc').textContent =
+            'Click "Start Monitoring" to begin';
+
+        document.getElementById('status').textContent =
+            '🤖 AI is analyzing your fatigue...';
+        document.getElementById('btnStop').disabled = true;
+        document.getElementById('btnStart').disabled = false;
+
+        const res = await fetch('/api/session/stop',
+            { method: 'POST' });
+        const data = await res.json();
+
+        const fatigue = data.fatigueLevel;
+        const fatigueEl = document.getElementById('fatigueLevel');
+        fatigueEl.textContent = fatigue;
+        fatigueEl.className = `value fatigue-${fatigue}`;
+
+        // Show alert
+        const alertBox = document.getElementById('alertBox');
+        alertBox.className = `alert-box alert-${fatigue}`;
+        alertBox.style.display = 'block';
+
+        if (fatigue === 'LOW') {
+            alertBox.textContent =
+                '🟢 Great job! You are focused and fresh. Keep going!';
+        } else if (fatigue === 'MEDIUM') {
+            alertBox.textContent =
+                '🟡 Getting tired. Consider a 5 minute break!';
+        } else {
+            alertBox.textContent =
+                '🔴 High fatigue detected! Please take a long break now!';
+        }
+
+        document.getElementById('status').textContent =
+            `✅ Session saved! AI detected: ${fatigue} fatigue`;
+
+        loadSessions();
+    }
+
+    function initCharts() {
+        const ctx1 = document.getElementById('fatigueChart')
+            .getContext('2d');
+        fatigueChart = new Chart(ctx1, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Fatigue Level',
+                    data: [],
+                    borderColor: '#00d4ff',
+                    backgroundColor: '#00d4ff22',
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: {
+                        labels: { color: '#888' }
+                    }},
+                scales: {
+                    y: {
+                        min: 0, max: 3,
+                        ticks: {
+                            color: '#888',
+                            callback: function(val) {
+                                return ['', 'LOW',
+                                    'MEDIUM', 'HIGH'][val];
+                            }
+                        },
+                        grid: { color: '#2a2a4a' }
+                    },
+                    x: {
+                        ticks: { color: '#888' },
+                        grid: { color: '#2a2a4a' }
+                    }
+                }
+            }
+        });
+
+        const ctx2 = document.getElementById('distributionChart')
+            .getContext('2d');
+        distributionChart = new Chart(ctx2, {
+            type: 'doughnut',
+            data: {
+                labels: ['LOW', 'MEDIUM', 'HIGH'],
+                datasets: [{
+                    data: [0, 0, 0],
+                    backgroundColor: [
+                        '#00ff8844',
+                        '#ffaa0044',
+                        '#ff444444'
+                    ],
+                    borderColor: ['#00ff88', '#ffaa00', '#ff4444'],
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { labels: { color: '#888' } }
+                }
+            }
+        });
+    }
+
+    function updateCharts(sessions) {
+        const recent = sessions.slice(-10);
+        const labels = recent.map((s, i) => `#${i + 1}`);
+        const data = recent.map(s => {
+            if (s.fatigueLevel === 'LOW') return 1;
+            if (s.fatigueLevel === 'MEDIUM') return 2;
+            return 3;
+        });
+
+        fatigueChart.data.labels = labels;
+        fatigueChart.data.datasets[0].data = data;
+        fatigueChart.update();
+
+        const low = sessions.filter(s =>
+            s.fatigueLevel === 'LOW').length;
+        const medium = sessions.filter(s =>
+            s.fatigueLevel === 'MEDIUM').length;
+        const high = sessions.filter(s =>
+            s.fatigueLevel === 'HIGH').length;
+
+        distributionChart.data.datasets[0].data = [low, medium, high];
+        distributionChart.update();
+    }
+
+    async function loadSessions() {
+        const res = await fetch('/api/session/all');
+        const sessions = await res.json();
+        const tbody = document.getElementById('sessionTable');
+
+        if (sessions.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="5"
+                style="text-align:center; color:#888">
+                No sessions yet — start your first session!
+                </td></tr>`;
+            return;
+        }
+
+        updateCharts(sessions);
+
+        tbody.innerHTML = sessions.reverse().map(s => `
+            <tr>
+                <td>${new Date(s.timestamp).toLocaleString()}</td>
+                <td>${s.keystrokeCount}</td>
+                <td>${s.errorCount}</td>
+                <td>${s.typingSpeed.toFixed(1)} k/min</td>
+                <td><span class="badge badge-${s.fatigueLevel}">
+                    ${s.fatigueLevel}</span></td>
+            </tr>
+        `).join('');
+    }
+</script>
+
+</body>
+</html>
